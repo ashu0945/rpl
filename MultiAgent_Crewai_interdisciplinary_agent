@@ -1,0 +1,70 @@
+import os
+import json
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import LatentDirichletAllocation
+from sklearn.cluster import KMeans
+from nltk.tokenize import sent_tokenize
+import re
+
+class InterdisciplinaryAgent:
+    def __init__(self, research_folder):
+        self.research_folder = research_folder
+        self.documents = []
+        self.topics = []
+
+    def load_documents(self):
+        # Load each text file in the folder and store in documents list
+        for filename in os.listdir(self.research_folder):
+            if filename.endswith(".txt"):
+                with open(os.path.join(self.research_folder, filename), 'r') as file:
+                    text = file.read()
+                    self.documents.append(text)
+        print(f"Loaded {len(self.documents)} research documents.")
+
+    def preprocess_text(self, text):
+        # Clean and tokenize text
+        text = re.sub(r'\W+', ' ', text.lower())
+        return text
+
+    def classify_disciplines(self, n_topics=5):
+        # Use LDA or KMeans for topic modeling to classify disciplines
+        vectorizer = TfidfVectorizer(stop_words='english')
+        X = vectorizer.fit_transform([self.preprocess_text(doc) for doc in self.documents])
+
+        lda = LatentDirichletAllocation(n_components=n_topics, random_state=42)
+        lda.fit(X)
+
+        self.topics = lda.transform(X)
+        print("Classified disciplines for each document.")
+
+    def extract_interdisciplinary_implications(self):
+        # Extract sentences from each document, look for cross-discipline implications
+        implications = []
+        for doc, topic_dist in zip(self.documents, self.topics):
+            topic = topic_dist.argmax()
+            sentences = sent_tokenize(doc)
+            for sentence in sentences:
+                if "application" in sentence or "implication" in sentence:
+                    implications.append({
+                        "discipline": topic,
+                        "sentence": sentence
+                    })
+        return implications
+
+    def save_implications(self, implications, output_file="interdisciplinary_implications.json"):
+        # Save extracted implications to a JSON file
+        with open(output_file, 'w') as f:
+            json.dump(implications, f, indent=4)
+        print(f"Saved implications to {output_file}")
+
+if __name__ == "__main__":
+    # Initialize agent
+    agent = InterdisciplinaryAgent(research_folder="path/to/research_papers")
+    
+    # Load and process documents
+    agent.load_documents()
+    agent.classify_disciplines()
+    
+    # Extract and save interdisciplinary implications
+    implications = agent.extract_interdisciplinary_implications()
+    agent.save_implications(implications)
